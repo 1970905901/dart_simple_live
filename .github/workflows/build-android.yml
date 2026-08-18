@@ -51,11 +51,20 @@ jobs:
           # `apply plugin: 'kotlin-android'` (e.g. auto_orientation_v2) then fail to
           # compile their Kotlin, producing "cannot find symbol <PluginClass>" at app
           # compile time. Inject the plugin where it is missing.
-          find "$HOME/.pub-cache/hosted/pub.dev" -path "*/android/build.gradle" 2>/dev/null | while read -r f; do
+          echo "== patching plugins missing the Kotlin Gradle plugin =="
+          find "$HOME" -name "AutoOrientationPlugin.kt" 2>/dev/null | while read -r kt; do
+            bg="$(dirname "$kt")/../../build.gradle"
+            if [ -f "$bg" ] && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$bg"; then
+              sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$bg"
+              echo "patched: $bg"
+            fi
+          done
+          # Fallback: scan the pub cache for any other plugin with the same problem.
+          find "$HOME/.pub-cache" -path "*/android/build.gradle" 2>/dev/null | while read -r f; do
             if grep -q "com.android.library" "$f" && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$f"; then
               if grep -rq "\.kt\$" "$(dirname "$f")/src" 2>/dev/null; then
                 sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$f"
-                echo "patched (kotlin-android): $f"
+                echo "patched (fallback): $f"
               fi
             fi
           done
@@ -105,11 +114,19 @@ jobs:
           cd simple_live_tv_app
           flutter pub get
           # Same Kotlin-plugin injection as the mobile job (see above).
-          find "$HOME/.pub-cache/hosted/pub.dev" -path "*/android/build.gradle" 2>/dev/null | while read -r f; do
+          echo "== patching plugins missing the Kotlin Gradle plugin =="
+          find "$HOME" -name "AutoOrientationPlugin.kt" 2>/dev/null | while read -r kt; do
+            bg="$(dirname "$kt")/../../build.gradle"
+            if [ -f "$bg" ] && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$bg"; then
+              sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$bg"
+              echo "patched: $bg"
+            fi
+          done
+          find "$HOME/.pub-cache" -path "*/android/build.gradle" 2>/dev/null | while read -r f; do
             if grep -q "com.android.library" "$f" && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$f"; then
               if grep -rq "\.kt\$" "$(dirname "$f")/src" 2>/dev/null; then
                 sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$f"
-                echo "patched (kotlin-android): $f"
+                echo "patched (fallback): $f"
               fi
             fi
           done
