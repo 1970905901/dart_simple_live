@@ -19,6 +19,12 @@ allprojects {
             val hasKt = srcDir.exists() && srcDir.walkTopDown().any { it.isFile && it.extension == "kt" }
             if (hasKt) {
                 apply(plugin = "org.jetbrains.kotlin.android")
+                // Kotlin 2.x otherwise defaults its jvmTarget to 17, which clashes
+                // with the module's Java compile target (1.8) and fails with
+                // "Inconsistent JVM Target Compatibility". Pin Kotlin to 1.8 to match.
+                tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+                    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+                }
             }
         }
     }
