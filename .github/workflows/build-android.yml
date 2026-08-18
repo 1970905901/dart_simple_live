@@ -52,7 +52,8 @@ jobs:
           # compile their Kotlin, producing "cannot find symbol <PluginClass>" at app
           # compile time. Inject the plugin where it is missing.
           echo "== patching plugins missing the Kotlin Gradle plugin =="
-          find "$HOME" -name "AutoOrientationPlugin.kt" 2>/dev/null | while read -r kt; do
+          echo "HOME=$HOME PUB_CACHE=$PUB_CACHE"
+          find / -name "AutoOrientationPlugin.kt" 2>/dev/null | while read -r kt; do
             bg="$(dirname "$kt")/../../build.gradle"
             if [ -f "$bg" ] && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$bg"; then
               sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$bg"
@@ -115,7 +116,8 @@ jobs:
           flutter pub get
           # Same Kotlin-plugin injection as the mobile job (see above).
           echo "== patching plugins missing the Kotlin Gradle plugin =="
-          find "$HOME" -name "AutoOrientationPlugin.kt" 2>/dev/null | while read -r kt; do
+          echo "HOME=$HOME PUB_CACHE=$PUB_CACHE"
+          find / -name "AutoOrientationPlugin.kt" 2>/dev/null | while read -r kt; do
             bg="$(dirname "$kt")/../../build.gradle"
             if [ -f "$bg" ] && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$bg"; then
               sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$bg"
