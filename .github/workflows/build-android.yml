@@ -46,6 +46,19 @@ jobs:
         run: |
           cd simple_live_app
           flutter pub get
+          # Newer Flutter (3.38) no longer auto-applies the Kotlin Gradle plugin to
+          # plugin modules. Plugins that ship .kt sources but omit
+          # `apply plugin: 'kotlin-android'` (e.g. auto_orientation_v2) then fail to
+          # compile their Kotlin, producing "cannot find symbol <PluginClass>" at app
+          # compile time. Inject the plugin where it is missing.
+          find "$HOME/.pub-cache/hosted/pub.dev" -path "*/android/build.gradle" 2>/dev/null | while read -r f; do
+            if grep -q "com.android.library" "$f" && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$f"; then
+              if grep -rq "\.kt\$" "$(dirname "$f")/src" 2>/dev/null; then
+                sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$f"
+                echo "patched (kotlin-android): $f"
+              fi
+            fi
+          done
           dart run build_runner build --delete-conflicting-outputs
           flutter build apk --release --split-per-abi
 
@@ -91,6 +104,15 @@ jobs:
         run: |
           cd simple_live_tv_app
           flutter pub get
+          # Same Kotlin-plugin injection as the mobile job (see above).
+          find "$HOME/.pub-cache/hosted/pub.dev" -path "*/android/build.gradle" 2>/dev/null | while read -r f; do
+            if grep -q "com.android.library" "$f" && ! grep -qiE "kotlin-android|org.jetbrains.kotlin.android" "$f"; then
+              if grep -rq "\.kt\$" "$(dirname "$f")/src" 2>/dev/null; then
+                sed -i "s/\(apply plugin:[ ]*['\"]com.android.library['\"]\)/\1\napply plugin: 'kotlin-android'/" "$f"
+                echo "patched (kotlin-android): $f"
+              fi
+            fi
+          done
           flutter build apk --release --split-per-abi
 
       - name: Upload TV APK
