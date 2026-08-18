@@ -1,0 +1,121 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'build_v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-mobile:
+    name: Build mobile app APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.x
+          cache: true
+
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+
+      - name: Generate signing keystore (mobile)
+        run: |
+          keytool -genkeypair -v \
+            -keystore simple_live_app/android/app/key.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias simplelive -storepass android -keypass android \
+            -dname "CN=SimpleLive,OU=Dev,O=SimpleLive,L=Unknown,S=Unknown,C=CN"
+          printf 'storeFile=key.jks\nstorePassword=android\nkeyPassword=android\nkeyAlias=simplelive\n' \
+            > simple_live_app/android/key.properties
+
+      - name: Build mobile app
+        run: |
+          cd simple_live_app
+          flutter pub get
+          dart run build_runner build --delete-conflicting-outputs
+          flutter build apk --release --split-per-abi
+
+      - name: Upload mobile APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-apk
+          path: simple_live_app/build/app/outputs/flutter-apk/*.apk
+
+  build-tv:
+    name: Build TV app APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: 17
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.38.x
+          cache: true
+
+      - name: Accept Android licenses
+        run: yes | flutter doctor --android-licenses || true
+
+      - name: Generate signing keystore (TV)
+        run: |
+          keytool -genkeypair -v \
+            -keystore simple_live_tv_app/android/app/key.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias simplelivetv -storepass android -keypass android \
+            -dname "CN=SimpleLiveTV,OU=Dev,O=SimpleLive,L=Unknown,S=Unknown,C=CN"
+          printf 'storeFile=key.jks\nstorePassword=android\nkeyPassword=android\nkeyAlias=simplelivetv\n' \
+            > simple_live_tv_app/android/key.properties
+
+      - name: Build TV app
+        run: |
+          cd simple_live_tv_app
+          flutter pub get
+          flutter build apk --release --split-per-abi
+
+      - name: Upload TV APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: tv-apk
+          path: simple_live_tv_app/build/app/outputs/flutter-apk/*.apk
+
+  release:
+    name: Publish release (on tag)
+    needs: [build-mobile, build-tv]
+    if: startsWith(github.ref, 'refs/tags/build_v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all APKs
+        uses: actions/download-artifact@v4
+        with:
+          path: apks
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          files: apks/**/*.apk
